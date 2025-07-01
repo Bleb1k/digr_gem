@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<head>
+  <title>Help bro I'm stuck digging millions of rocks just to find a single gold ore!</title>
+  <style>
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  canvas#game {
+    position: absolute;
+    width:  100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  canvas#game:focus {
+    outline: 2px solid red;
+  }
+  .params {
+    z-index: 2;
+    position: absolute;
+    background-color: #fff2;
+    top: 210px;
+  }
+  .params div {
+    display: flex;
+    margin: 3px;
+  }
+  .params div * {
+    margin: 5px;
+  }
+  </style>
+  <script src="./game.js" type="module"></script>
+</head>
+<body>
+  <canvas id="game" tabindex="0"></canvas>
+  <div class="params">
+    <div id="character_speed"><div>character: tiles/sec</div><input value=20></input></div>
+  </div>
+</body>
