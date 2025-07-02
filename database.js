@@ -2,10 +2,9 @@ const DB_NAME = "CavernXYZ"
 const VERSION = 1
 
 export class DB {
-  constructor() { this.db = null }
+  static db
 
   static async init() {
-    const self = new DB()
     return new Promise((res, rej) => {
       const req = indexedDB.open(DB_NAME, VERSION)
       req.onupgradeneeded = (evt) => {
@@ -21,33 +20,33 @@ export class DB {
             throw new Error(`Can't upgrade from version ${evt.oldVersion} to version ${evt.newVersion}`)
         }
       }
-      req.onsuccess = () => { self.db = req.result; res(self) }
+      req.onsuccess = () => { this.db = req.result; res() }
       req.onerror = () => rej(req.error)
     })
   }
 
-  async save(store, obj) {
+  static async save(store, obj) {
     const tx = this.db.transaction(store, 'readwrite')
     await idbPut(tx.objectStore(store), obj)
     await closeTransaction(tx)
     return obj
   }
 
-  async load(store, key) {
+  static async load(store, key) {
     const tx = this.db.transaction(store)
     const result = await idbGet(tx.objectStore(store), key)
     await closeTransaction(tx)
     return result
   }
 
-  async transaction(store_name, fn, perms = "readonly") {
+  static async transaction(store_name, fn, perms = "readonly") {
     const tx = this.db.transaction(store_name, perms)
     let result = await fn(tx.objectStore(store_name))
     await closeTransaction(tx)
     return result
   }
 
-  async delete() {
+  static async delete() {
     return new Promise((ok, err) => {
       this.db.close()
       const del = indexedDB.deleteDatabase(DB_NAME)

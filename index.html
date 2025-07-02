@@ -33,6 +33,20 @@
   .params div * {
     margin: 5px;
   }
+  .instructions {
+    position: absolute;
+    left: 220px;
+    margin-top: 1em;
+    margin-bottom: 1em;
+  }
+  .instructions ul {
+    list-style: none;
+    padding-left: 10px;
+  }
+    .instructions > * {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
   </style>
   <script src="./game.js" type="module"></script>
 </head>
@@ -41,5 +55,13 @@
   <div class="params">
     <div id="character_speed"><div>character: spd</div><input value=20></input></div>
     <div id="character_stren"><div>character: str</div><input value=1 ></input></div>
+  </div>
+  <div class="instructions">
+    <p>Controls:</p>
+    <ul>
+      <li>f5: save & reload page</li>
+      <li>alt+f5: reset</li>
+      <li>wasd/arrow keys: move & dig</li>
+    </ul>
   </div>
 </body>

@@ -9,14 +9,19 @@ import { BIOME_POOLS, tileColor } from "./resources.js"
 class Game {
   static dt = 0
   static async init() {
-    this.db = await DB.init()
+    await DB.init()
 
+    try {
     await Promise.all([
-      Metadata.init(this.db),
-      Character.init(this.db),
+      Metadata.init(),
+      Character.init(),
     ])
-    this.chunks = await Chunks.init(this.db, Character.pos)
-
+    this.chunks = await Chunks.init(Character.pos)
+    } catch (e) {
+      if (confirm("Error during load of the game, reset?"))
+        (await DB.delete(), location.reload())
+      throw e
+    }
     this.chunks.chunkSetTile(this.chunks.c, Character.pos, { amount: 0 })
 
     {
@@ -82,7 +87,7 @@ class Game {
 
   static async update() {
     if (isKeyPressed(Key.f5) && isKeyDown(Key.alt)) {
-      await this.db.delete()
+      await DB.delete()
       return location.reload()
     } else if (isKeyPressed(Key.f5)) {
       await this.save()

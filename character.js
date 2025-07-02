@@ -1,9 +1,8 @@
+import { DB } from "./database.js"
 import { isKeyDown, Key } from "./keys.js"
 import { BIOME_POOLS } from "./resources.js"
 
 export class Character {
-  static db
-
   static move_recharge = 200
   static hit_recharge = 1000
   static strength = 0
@@ -12,10 +11,8 @@ export class Character {
   static hit_accumulator = 0
   static move_vec = Math.vec(0, 0)
 
-  static async init(db) {
-    this.db = db
-
-    const result = await this.db.load("character", 0)
+  static async init() {
+    const result = await DB.load("character", 0)
     this.pos = Math.vec(...(result?.pos ?? [50, 50]))
 
     /** @type {HTMLInputElement} */
@@ -52,17 +49,14 @@ export class Character {
         return false
       }
       const new_pos = this.pos.plus(move_vec)
-      console.log(`${this.pos} + ${move_vec} = ${new_pos}`)
       const tile = chunks.getTile(new_pos)[0]
-      console.log(new_pos.toString())
       if (tile.amount > 0) {
-        console.log(new_pos.toString())
         this.move_vec = move_vec
-        console.log(new_pos.toString())
         this.hit(chunks, new_pos)
         this.move_charge += this.hit_recharge
       } else {
         this.move_vec = Math.vec(0, 0)
+        this.hit_accumulator = 0
         this.pos = new_pos
         this.move_charge += this.move_recharge
       }
@@ -74,14 +68,14 @@ export class Character {
     console.log(`hitting ${pos}`)
     const [tile, biome] = chunks.getTile(pos)
     const { hardness } = BIOME_POOLS[biome][tile.id]
-    
-    console.log('acc', this.hit_accumulator, 'hardness', hardness, 'amount', tile.amount)
+
+    console.log('acc', this.hit_accumulator + this.strength, 'hardness', hardness, 'amount', tile.amount)
     if (this.strength * 10 < hardness) return
     if ((this.hit_accumulator += this.strength) < hardness) return
 
     const broken_amount = Math.min(Math.floor(this.hit_accumulator / hardness), tile.amount)
-    
-    const { amount: new_amount } = chunks.setTile(pos, {d_amount: -broken_amount})
+
+    const { amount: new_amount } = chunks.setTile(pos, { d_amount: -broken_amount })
     console.log('broken', broken_amount, 'new', new_amount)
     if (new_amount <= 0) this.hit_accumulator = 0
     else this.hit_accumulator -= broken_amount * hardness
@@ -89,7 +83,7 @@ export class Character {
 
   static async save() {
     console.log(`Saving character with { pos: ${this.pos}}`)
-    await this.db.save("character", {
+    await DB.save("character", {
       id: 0,
       pos: this.pos.components,
       strength: this.strength,

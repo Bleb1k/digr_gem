@@ -1,21 +1,19 @@
+import { DB } from "./database.js"
 import { enum_ } from "./enum.js"
 import { Metadata } from "./meta.js"
 import { hashCoords, mulberry32 } from "./utils.js"
 import { BIOME_POOLS, randomBiomeAt, randomResourceAt } from "./resources.js"
 
 export class Chunks {
-  static db
-
   static dimensions = enum_("mine")
 
-  static async init(db, pos) {
+  static async init(pos) {
     this.tiles_per_chunk ??= { w: 100, h: 100 }
     this.tile_size ??= { w: 10, h: 10 }
     this.render_radius ??= { w: 10, h: 10 }
     this.character_tile ??= this.render_radius
 
     const self = new Chunks()
-    self.db = db
 
     self.cur_pos = pos
     self.cur_chunk = Math.vec(
@@ -33,15 +31,15 @@ export class Chunks {
   async save() {
     console.log(`Saving chunks`)
     return Promise.all([
-      this.db.save("chunks", this.c),
-      this.db.save("chunks", this.l),
-      this.db.save("chunks", this.r),
-      this.db.save("chunks", this.u),
-      this.db.save("chunks", this.d),
-      this.db.save("chunks", this.ul),
-      this.db.save("chunks", this.ur),
-      this.db.save("chunks", this.dl),
-      this.db.save("chunks", this.dr),
+      DB.save("chunks", this.c),
+      DB.save("chunks", this.l),
+      DB.save("chunks", this.r),
+      DB.save("chunks", this.u),
+      DB.save("chunks", this.d),
+      DB.save("chunks", this.ul),
+      DB.save("chunks", this.ur),
+      DB.save("chunks", this.dl),
+      DB.save("chunks", this.dr),
     ])
   }
 
@@ -116,7 +114,7 @@ export class Chunks {
   }
 
   async getChunk(pos) {
-    return (await this.db.load("chunks", [pos.x, pos.y]))
+    return (await DB.load("chunks", [pos.x, pos.y]))
       ?? this.generateChunk(pos)
   }
 
@@ -130,7 +128,7 @@ export class Chunks {
     if (pos.eq([prev_x, prev_y])) return;
 
     const chunk = this[name]
-    this.db.save("chunks", chunk)
+    DB.save("chunks", chunk)
     this[name] = await this.getChunk(pos)
   }
 
@@ -147,9 +145,9 @@ export class Chunks {
     this.d = this.dl
 
     await Promise.all([
-      this.db.save("chunks", r),
-      this.db.save("chunks", ur),
-      this.db.save("chunks", dr),
+      DB.save("chunks", r),
+      DB.save("chunks", ur),
+      DB.save("chunks", dr),
       this.replaceChunk("ul", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y - 1)),
       this.replaceChunk("l", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y)),
       this.replaceChunk("dl", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y + 1)),
@@ -169,9 +167,9 @@ export class Chunks {
     this.d = this.dr
 
     await Promise.all([
-      this.db.save("chunks", l),
-      this.db.save("chunks", ul),
-      this.db.save("chunks", dl),
+      DB.save("chunks", l),
+      DB.save("chunks", ul),
+      DB.save("chunks", dl),
       this.replaceChunk("ur", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y - 1)),
       this.replaceChunk("r", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y)),
       this.replaceChunk("dr", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y + 1)),
@@ -191,9 +189,9 @@ export class Chunks {
     this.r = this.ur
 
     await Promise.all([
-      this.db.save("chunks", dl),
-      this.db.save("chunks", d),
-      this.db.save("chunks", dr),
+      DB.save("chunks", dl),
+      DB.save("chunks", d),
+      DB.save("chunks", dr),
       this.replaceChunk("ul", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y - 1)),
       this.replaceChunk("u", Math.vec(this.cur_chunk.x, this.cur_chunk.y - 1)),
       this.replaceChunk("ur", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y - 1)),
@@ -213,9 +211,9 @@ export class Chunks {
     this.r = this.dr
 
     await Promise.all([
-      this.db.save("chunks", ul),
-      this.db.save("chunks", u),
-      this.db.save("chunks", ur),
+      DB.save("chunks", ul),
+      DB.save("chunks", u),
+      DB.save("chunks", ur),
       this.replaceChunk("dl", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y + 1)),
       this.replaceChunk("d", Math.vec(this.cur_chunk.x, this.cur_chunk.y + 1)),
       this.replaceChunk("dr", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y + 1)),
@@ -280,7 +278,7 @@ export class Chunks {
     const chunk_x = Math.floor(pos.x / Chunks.tiles_per_chunk.w)
     const chunk_y = Math.floor(pos.y / Chunks.tiles_per_chunk.h)
 
-    console.log({center_x, center_y}, {chunk_x, chunk_y}, pos.toString())
+    // console.log({center_x, center_y}, {chunk_x, chunk_y}, pos.toString())
 
     return center_x === chunk_x && center_y === chunk_y ? this.chunkSetTile(this.c, pos, params)
       : center_x < chunk_x && center_y === chunk_y ? this.chunkSetTile(this.r, pos, params)
@@ -305,7 +303,7 @@ export class Chunks {
       throw new Error(`You can only set tiles within the bounds of tile (<0, 0>..<${Chunks.tiles_per_chunk.w}, ${Chunks.tiles_per_chunk.h}>), got ${local_pos}`)
 
     const tile = chunk.data[local_pos.x + local_pos.y * Chunks.tiles_per_chunk.w]
-    console.log(tile)
+    // console.log(tile)
 
     if (id !== undefined) tile.id = id
 
