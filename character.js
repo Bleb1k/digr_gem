@@ -52,9 +52,13 @@ export class Character {
         return false
       }
       const new_pos = this.pos.plus(move_vec)
+      console.log(`${this.pos} + ${move_vec} = ${new_pos}`)
       const tile = chunks.getTile(new_pos)[0]
+      console.log(new_pos.toString())
       if (tile.amount > 0) {
+        console.log(new_pos.toString())
         this.move_vec = move_vec
+        console.log(new_pos.toString())
         this.hit(chunks, new_pos)
         this.move_charge += this.hit_recharge
       } else {
@@ -67,17 +71,18 @@ export class Character {
   }
 
   static hit(chunks, pos) {
+    console.log(`hitting ${pos}`)
     const [tile, biome] = chunks.getTile(pos)
     const { hardness } = BIOME_POOLS[biome][tile.id]
     
-    console.log(this.hit_accumulator, hardness)
+    console.log('acc', this.hit_accumulator, 'hardness', hardness, 'amount', tile.amount)
     if (this.strength * 10 < hardness) return
     if ((this.hit_accumulator += this.strength) < hardness) return
 
-    const broken_amount = Math.floor(this.hit_accumulator / hardness)
+    const broken_amount = Math.min(Math.floor(this.hit_accumulator / hardness), tile.amount)
     
     const { amount: new_amount } = chunks.setTile(pos, {d_amount: -broken_amount})
-    console.log(broken_amount, new_amount)
+    console.log('broken', broken_amount, 'new', new_amount)
     if (new_amount <= 0) this.hit_accumulator = 0
     else this.hit_accumulator -= broken_amount * hardness
   }

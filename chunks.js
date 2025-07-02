@@ -263,15 +263,15 @@ export class Chunks {
   }
 
   chunkGetTile(chunk, pos) {
-    pos.subtract(Math.vec(
+    const local_pos = pos.minus(Math.vec(
       chunk.x * Chunks.tiles_per_chunk.w,
       chunk.y * Chunks.tiles_per_chunk.h
     ))
-    if (pos.x < 0) pos.x = Chunks.tiles_per_chunk.w - pos.x
-    if (pos.y < 0) pos.y = Chunks.tiles_per_chunk.h - pos.y
-    if (pos.x >= Chunks.tiles_per_chunk.w || pos.y >= Chunks.tiles_per_chunk.h)
-      throw new Error(`You can only get tiles within the bounds of tile (<0, 0>..<${Chunks.tiles_per_chunk.w}, ${Chunks.tiles_per_chunk.h}>), got ${pos}`)
-    return [chunk.data[pos.x + pos.y * Chunks.tiles_per_chunk.w], chunk.biome]
+    if (local_pos.x < 0) local_pos.x = Chunks.tiles_per_chunk.w - local_pos.x
+    if (local_pos.y < 0) local_pos.y = Chunks.tiles_per_chunk.h - local_pos.y
+    if (local_pos.x >= Chunks.tiles_per_chunk.w || local_pos.y >= Chunks.tiles_per_chunk.h)
+      throw new Error(`You can only get tiles within the bounds of tile (<0, 0>..<${Chunks.tiles_per_chunk.w}, ${Chunks.tiles_per_chunk.h}>), got ${local_pos}`)
+    return [chunk.data[local_pos.x + local_pos.y * Chunks.tiles_per_chunk.w], chunk.biome]
   }
 
   setTile(pos, params) {
@@ -280,7 +280,7 @@ export class Chunks {
     const chunk_x = Math.floor(pos.x / Chunks.tiles_per_chunk.w)
     const chunk_y = Math.floor(pos.y / Chunks.tiles_per_chunk.h)
 
-    // console.log({center_x, center_y}, {chunk_x, chunk_y}, x, y)
+    console.log({center_x, center_y}, {chunk_x, chunk_y}, pos.toString())
 
     return center_x === chunk_x && center_y === chunk_y ? this.chunkSetTile(this.c, pos, params)
       : center_x < chunk_x && center_y === chunk_y ? this.chunkSetTile(this.r, pos, params)
@@ -295,16 +295,17 @@ export class Chunks {
   }
 
   chunkSetTile(chunk, pos, { amount, id, name, d_amount }) {
-    pos.subtract(Math.vec(
+    const local_pos = pos.minus(Math.vec(
       chunk.x * Chunks.tiles_per_chunk.w,
       chunk.y * Chunks.tiles_per_chunk.h
     ))
-    if (pos.x < 0) pos.x = Chunks.tiles_per_chunk.w - pos.x
-    if (pos.y < 0) pos.y = Chunks.tiles_per_chunk.h - pos.y
-    if (pos.x >= Chunks.tiles_per_chunk.w || pos.y >= Chunks.tiles_per_chunk.h)
-      throw new Error(`You can only set tiles within the bounds of tile (<0, 0>..<${Chunks.tiles_per_chunk.w}, ${Chunks.tiles_per_chunk.h}>), got ${pos}`)
+    if (local_pos.x < 0) local_pos.x = Chunks.tiles_per_chunk.w - local_pos.x
+    if (local_pos.y < 0) local_pos.y = Chunks.tiles_per_chunk.h - local_pos.y
+    if (local_pos.x >= Chunks.tiles_per_chunk.w || local_pos.y >= Chunks.tiles_per_chunk.h)
+      throw new Error(`You can only set tiles within the bounds of tile (<0, 0>..<${Chunks.tiles_per_chunk.w}, ${Chunks.tiles_per_chunk.h}>), got ${local_pos}`)
 
-    const tile = chunk.data[pos.x + pos.y * Chunks.tiles_per_chunk.w]
+    const tile = chunk.data[local_pos.x + local_pos.y * Chunks.tiles_per_chunk.w]
+    console.log(tile)
 
     if (id !== undefined) tile.id = id
 
@@ -313,6 +314,6 @@ export class Chunks {
     if (amount !== undefined) tile.amount = Math.max(amount, 0)
     else tile.amount = Math.max(tile.amount + (d_amount ?? 0), 0)
 
-    return chunk.data[pos.x + pos.y * Chunks.tiles_per_chunk.w] = tile
+    return chunk.data[local_pos.x + local_pos.y * Chunks.tiles_per_chunk.w] = tile
   }
 }
