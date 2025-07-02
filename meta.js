@@ -14,6 +14,5 @@ export class Metadata {
   static async save() {
     console.log(`Saving metadata with { seed: ${this.seed} }`)
     await this.db.save("metadata", { id: 0, seed: this.seed })
-    console.log("saved?", await this.db.load("metadata", 0))
   }
 }

@@ -65,3 +65,98 @@ function hashCode(str) {
   }
   return hash;
 }
+
+class Vector {
+  constructor(...vals) {
+    if (vals.length === 0) {
+      throw new Error("Can't create a vector of zero arity");
+    }
+    this.components = vals;
+  }
+
+  get arity() { return this.components.length }
+
+  get x() { return this.components[0]; }
+  set x(value) { this.components[0] = value; }
+
+  get y() { return this.components[1]; }
+  set y(value) { this.components[1] = value; }
+
+  get z() { return this.components[2]; }
+  set z(value) { this.components[2] = value; }
+
+  get w() { return this.components[3]; }
+  set w(value) { this.components[3] = value; }
+
+  magnitude() {
+    return Math.sqrt(this.components.reduce((sum, val) => sum + val * val, 0));
+  }
+
+  add(other) {
+    if (this.arity !== other.arity) {
+      throw new Error('Vectors must have the same arity');
+    }
+    this.components = this.components.map((val, i) => val + other.components[i]);
+  }
+
+  plus(other) {
+    if (this.arity !== other.arity) {
+      throw new Error('Vectors must have the same arity');
+    }
+    return new Vector(...this.components.map((val, i) => val + other.components[i]));
+  }
+
+  subtract(other) {
+    if (this.arity !== other.arity) {
+      throw new Error('Vectors must have the same arity');
+    }
+    this.components = this.components.map((val, i) => val - other.components[i]);
+  }
+
+  minus(other) {
+    if (this.arity !== other.arity) {
+      throw new Error('Vectors must have the same arity');
+    }
+    return new Vector(...this.components.map((val, i) => val - other.components[i]));
+  }
+
+  scale(scalar) {
+    return new Vector(...this.components.map(val => val * scalar));
+  }
+
+  dot(other) {
+    if (this.arity !== other.arity) {
+      throw new Error('Vectors must have the same arity');
+    }
+    return this.components.reduce((sum, val, i) => sum + val * other.components[i], 0);
+  }
+
+  normalize() {
+    const mag = this.magnitude();
+    if (mag === 0) {
+      throw new Error('Cannot normalize a zero vector');
+    }
+    return this.scale(1 / mag);
+  }
+
+  distanceTo(other) {
+    return this.subtract(other).magnitude();
+  }
+
+  eq(other) {
+    if (other instanceof Array) {
+      if (this.arity !== other.length) return false;
+      return this.components.every((val, i) => val === other[i])
+    }
+    if (this.arity !== other.arity) return false;
+    return this.components.every((val, i) => val === other.components[i]);
+  }
+
+  toString() {
+    return `<${this.components.join(', ')}>`;
+  }
+}
+
+Math.vec = function(...vals) {
+  return new Vector(...vals)
+}

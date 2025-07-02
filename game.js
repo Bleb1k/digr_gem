@@ -1,23 +1,27 @@
 import { draw_ctx } from "./canvas.js"
 import { Chunks } from "./chunks.js"
 import { DB } from "./database.js"
-import { sleep } from "./utils.js"
 import { Character } from "./character.js"
 import { Metadata } from "./meta.js"
 import { isKeyDown, isKeyPressed, Key, updateKeyEvents } from "./keys.js"
-import { tileColor } from "./resources.js"
+import { BIOME_POOLS, tileColor } from "./resources.js"
 
 class Game {
   static dt = 0
   static async init() {
     this.db = await DB.init()
 
-    await Metadata.init(this.db)
-    await Character.init(this.db)
+    await Promise.all([
+      Metadata.init(this.db),
+      Character.init(this.db),
+    ])
     this.chunks = await Chunks.init(this.db, Character.pos)
+
+    this.chunks.chunkSetTile(this.chunks.c, Character.pos, { amount: 0 })
 
     {
       const element = document.getElementById("game")
+      element.focus()
       element.addEventListener("mouseover", _ => element.focus())
       element.addEventListener("keydown", async (evt) => {
         const key = evt.keyCode
@@ -56,9 +60,11 @@ class Game {
     this.draw()
   }
   static async save() {
-    await Metadata.save()
-    await Character.save()
-    await this.chunks.save()
+    await Promise.all([
+      Metadata.save(),
+      Character.save(),
+      this.chunks.save(),
+    ])
   }
 
   static get error() {
@@ -77,31 +83,13 @@ class Game {
   static async update() {
     if (isKeyPressed(Key.f5) && isKeyDown(Key.alt)) {
       await this.db.delete()
-      console.log("successfully deleted game database")
-      await sleep(1000)
       return location.reload()
     } else if (isKeyPressed(Key.f5)) {
       await this.save()
       return location.reload()
     }
 
-    foo: if ((Character.move_charge -= this.dt) <= 0) while (Character.move_charge <= 0) {
-      const {x,y} = Character.pos
-      if (isKeyDown(Key.up) || isKeyDown(Key.w)) //up
-        Character.pos.y -= 1
-      if (isKeyDown(Key.left) || isKeyDown(Key.a))
-        Character.pos.x -= 1
-      if (isKeyDown(Key.down) || isKeyDown(Key.s))
-        Character.pos.y += 1
-      if (isKeyDown(Key.right) || isKeyDown(Key.d))
-        Character.pos.x += 1
-      if (x === Character.pos.x && y === Character.pos.y) {
-        Character.move_charge += this.dt
-        break foo
-      }
-      Character.move_charge += Character.move_recharge
-      this.schedule_draw()
-    }
+    if (Character.move(this.dt, this.chunks)) this.schedule_draw()
   }
 
   static async draw() {
@@ -109,11 +97,42 @@ class Game {
     for (const [x, y, tile, biome] of await this.chunks.visible_tiles()) {
       let color = tileColor(biome, tile)
       draw_ctx.fillStyle = color
-      draw_ctx.fillRect(x * 10, y * 10, 9, 9)
+      draw_ctx.fillRect(
+        x * 10,
+        y * 10,
+        Chunks.tile_size.w,
+        Chunks.tile_size.h
+      )
     }
     if (Character.shown) {
       draw_ctx.fillStyle = "#ccc"
-      draw_ctx.fillRect(Chunks.render_radius.w * 10, Chunks.render_radius.h * 10, 9, 9)
+      draw_ctx.fillRect(
+        Chunks.render_radius.w * 10,
+        Chunks.render_radius.h * 10,
+        Chunks.tile_size.w,
+        Chunks.tile_size.h
+      )
+    }
+    if (!Character.move_vec.eq([0, 0]) && Character.hit_accumulator > 0) {
+      const [tile, biome] = this.chunks.getTile(Character.pos.plus(Character.move_vec))
+      const { hardness } = BIOME_POOLS[biome][tile.id]
+      const split = Math.min(Character.hit_accumulator, hardness) / hardness
+      const gradient = draw_ctx.createConicGradient(0,
+        (Chunks.render_radius.w + Character.move_vec.x) * 10 + 5,
+        (Chunks.render_radius.h + Character.move_vec.y) * 10 + 5,
+      )
+      // draw_ctx.fillStyle = `conic-gradient(#ccc8 0deg, #0008 360deg)`
+      gradient.addColorStop(0, "#ccc4")
+      gradient.addColorStop(split, "#ccc4")
+      gradient.addColorStop(split, "#0000")
+      gradient.addColorStop(1, "#0000")
+      draw_ctx.fillStyle = gradient
+      draw_ctx.fillRect(
+        (Chunks.render_radius.w + Character.move_vec.x) * 10,
+        (Chunks.render_radius.h + Character.move_vec.y) * 10,
+        Chunks.tile_size.w,
+        Chunks.tile_size.h
+      )
     }
   }
 }

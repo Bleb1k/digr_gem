@@ -1,5 +1,3 @@
-import { Chunks } from "./chunks.js";
-
 const DB_NAME = "CavernXYZ"
 const VERSION = 1
 

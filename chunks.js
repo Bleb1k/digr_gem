@@ -1,7 +1,7 @@
 import { enum_ } from "./enum.js"
 import { Metadata } from "./meta.js"
 import { hashCoords, mulberry32 } from "./utils.js"
-import { randomBiomeAt, randomResourceAt } from "./resources.js"
+import { BIOME_POOLS, randomBiomeAt, randomResourceAt } from "./resources.js"
 
 export class Chunks {
   static db
@@ -10,6 +10,7 @@ export class Chunks {
 
   static async init(db, pos) {
     this.tiles_per_chunk ??= { w: 100, h: 100 }
+    this.tile_size ??= { w: 10, h: 10 }
     this.render_radius ??= { w: 10, h: 10 }
     this.character_tile ??= this.render_radius
 
@@ -17,10 +18,10 @@ export class Chunks {
     self.db = db
 
     self.cur_pos = pos
-    self.cur_chunk = {
-      x: Math.floor(pos.x / Chunks.tiles_per_chunk.w),
-      y: Math.floor(pos.y / Chunks.tiles_per_chunk.h),
-    }
+    self.cur_chunk = Math.vec(
+      Math.floor(pos.x / Chunks.tiles_per_chunk.w),
+      Math.floor(pos.y / Chunks.tiles_per_chunk.h),
+    )
     self.dim = Chunks.dimensions.mine
 
     self.updateMetadata()
@@ -44,17 +45,16 @@ export class Chunks {
     ])
   }
 
-  #cur_pos = { x: 0, y: 0 }
+  #cur_pos = Math.vec(0, 0)
 
-  set cur_pos({ x, y }) {
-    let same = this.#cur_pos.x === x && this.#cur_pos.y === y
-    if (same) return false
-    this.#cur_pos = { x, y }
-    this.cur_chunk = {
-      x: Math.floor(x / Chunks.tiles_per_chunk.w),
-      y: Math.floor(y / Chunks.tiles_per_chunk.h),
-    }
-    return { x, y }
+  set cur_pos(pos) {
+    if (this.#cur_pos.eq(pos)) return false
+    this.#cur_pos.components = pos.components.slice()
+    this.cur_chunk = Math.vec(
+      Math.floor(pos.x / Chunks.tiles_per_chunk.w),
+      Math.floor(pos.y / Chunks.tiles_per_chunk.h),
+    )
+    return this.#cur_pos
   }
 
   get cur_pos() { return this.#cur_pos }
@@ -63,14 +63,14 @@ export class Chunks {
     this.seed = Metadata.seed
   }
 
-  generateChunk(x, y) {
-    console.log(`Generating chunk <${x}, ${y}>`)
-    const chunk = { x, y }
+  generateChunk(pos) {
+    console.log(`Generating chunk ${pos}`)
+    const chunk = { x: pos.x, y: pos.y }
 
-    const chunkSeed = hashCoords(x, y, this.seed)
+    const chunkSeed = hashCoords(pos.x, pos.y, this.seed)
     const rng = mulberry32(chunkSeed)
 
-    chunk.biome = randomBiomeAt(y, rng)
+    chunk.biome = randomBiomeAt(pos.y, rng)
 
     chunk.data = new Array(Chunks.tiles_per_chunk.w * Chunks.tiles_per_chunk.h)
       .fill(0)
@@ -94,44 +94,44 @@ export class Chunks {
       || (this.cur_chunk.x !== x && this.cur_chunk.y !== y)
     ) {
       await Promise.all([
-        this.replaceChunk("c", this.cur_chunk.x, this.cur_chunk.y),
-        this.replaceChunk("l", this.cur_chunk.x - 1, this.cur_chunk.y),
-        this.replaceChunk("r", this.cur_chunk.x + 1, this.cur_chunk.y),
-        this.replaceChunk("u", this.cur_chunk.x, this.cur_chunk.y - 1),
-        this.replaceChunk("d", this.cur_chunk.x, this.cur_chunk.y + 1),
-        this.replaceChunk("ul", this.cur_chunk.x - 1, this.cur_chunk.y - 1),
-        this.replaceChunk("ur", this.cur_chunk.x + 1, this.cur_chunk.y - 1),
-        this.replaceChunk("dl", this.cur_chunk.x - 1, this.cur_chunk.y + 1),
-        this.replaceChunk("dr", this.cur_chunk.x + 1, this.cur_chunk.y + 1),
+        this.replaceChunk("c", Math.vec(this.cur_chunk.x, this.cur_chunk.y)),
+        this.replaceChunk("l", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y)),
+        this.replaceChunk("r", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y)),
+        this.replaceChunk("u", Math.vec(this.cur_chunk.x, this.cur_chunk.y - 1)),
+        this.replaceChunk("d", Math.vec(this.cur_chunk.x, this.cur_chunk.y + 1)),
+        this.replaceChunk("ul", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y - 1)),
+        this.replaceChunk("ur", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y - 1)),
+        this.replaceChunk("dl", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y + 1)),
+        this.replaceChunk("dr", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y + 1)),
       ])
     } else if (x < this.cur_chunk.x && y === this.cur_chunk.y) {
-      await this.moveRight()
+      return this.moveRight()
     } else if (x > this.cur_chunk.x && y === this.cur_chunk.y) {
-      await this.moveLeft()
+      return this.moveLeft()
     } else if (y < this.cur_chunk.y && x === this.cur_chunk.x) {
-      await this.moveDown()
+      return this.moveDown()
     } else if (y > this.cur_chunk.y && x === this.cur_chunk.x) {
-      await this.moveUp()
+      return this.moveUp()
     }
   }
 
-  async getChunk(x, y) {
-    return (await this.db.load("chunks", [x, y]))
-      ?? this.generateChunk(x, y)
+  async getChunk(pos) {
+    return (await this.db.load("chunks", [pos.x, pos.y]))
+      ?? this.generateChunk(pos)
   }
 
-  async replaceChunk(name, x, y) {
+  async replaceChunk(name, pos) {
     if (!this[name]) return void (
-      this[name] = await this.getChunk(x, y)
+      this[name] = await this.getChunk(pos)
     )
 
     let { x: prev_x, y: prev_y } = this[name]
 
-    if (prev_x === x && prev_y === y) return;
+    if (pos.eq([prev_x, prev_y])) return;
 
     const chunk = this[name]
     this.db.save("chunks", chunk)
-    this[name] = await this.getChunk(x, y)
+    this[name] = await this.getChunk(pos)
   }
 
   async moveLeft() {
@@ -150,9 +150,9 @@ export class Chunks {
       this.db.save("chunks", r),
       this.db.save("chunks", ur),
       this.db.save("chunks", dr),
-      this.replaceChunk("ul", this.cur_chunk.x - 1, this.cur_chunk.y - 1),
-      this.replaceChunk("l", this.cur_chunk.x - 1, this.cur_chunk.y),
-      this.replaceChunk("dl", this.cur_chunk.x - 1, this.cur_chunk.y + 1),
+      this.replaceChunk("ul", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y - 1)),
+      this.replaceChunk("l", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y)),
+      this.replaceChunk("dl", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y + 1)),
     ])
   }
 
@@ -172,9 +172,9 @@ export class Chunks {
       this.db.save("chunks", l),
       this.db.save("chunks", ul),
       this.db.save("chunks", dl),
-      this.replaceChunk("ur", this.cur_chunk.x + 1, this.cur_chunk.y - 1),
-      this.replaceChunk("r", this.cur_chunk.x + 1, this.cur_chunk.y),
-      this.replaceChunk("dr", this.cur_chunk.x + 1, this.cur_chunk.y + 1),
+      this.replaceChunk("ur", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y - 1)),
+      this.replaceChunk("r", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y)),
+      this.replaceChunk("dr", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y + 1)),
     ])
   }
 
@@ -194,9 +194,9 @@ export class Chunks {
       this.db.save("chunks", dl),
       this.db.save("chunks", d),
       this.db.save("chunks", dr),
-      this.replaceChunk("ul", this.cur_chunk.x - 1, this.cur_chunk.y - 1),
-      this.replaceChunk("u", this.cur_chunk.x, this.cur_chunk.y - 1),
-      this.replaceChunk("ur", this.cur_chunk.x + 1, this.cur_chunk.y - 1),
+      this.replaceChunk("ul", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y - 1)),
+      this.replaceChunk("u", Math.vec(this.cur_chunk.x, this.cur_chunk.y - 1)),
+      this.replaceChunk("ur", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y - 1)),
     ])
   }
 
@@ -216,9 +216,9 @@ export class Chunks {
       this.db.save("chunks", ul),
       this.db.save("chunks", u),
       this.db.save("chunks", ur),
-      this.replaceChunk("dl", this.cur_chunk.x - 1, this.cur_chunk.y + 1),
-      this.replaceChunk("d", this.cur_chunk.x, this.cur_chunk.y + 1),
-      this.replaceChunk("dr", this.cur_chunk.x + 1, this.cur_chunk.y + 1),
+      this.replaceChunk("dl", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y + 1)),
+      this.replaceChunk("d", Math.vec(this.cur_chunk.x, this.cur_chunk.y + 1)),
+      this.replaceChunk("dr", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y + 1)),
     ])
   }
 
@@ -229,47 +229,90 @@ export class Chunks {
     return function*() {
       for (let x = -Chunks.render_radius.w; x <= Chunks.render_radius.w; x += 1) {
         for (let y = -Chunks.render_radius.h; y <= Chunks.render_radius.h; y += 1) {
-          const global_x = this.#cur_pos.x + x
-          const global_y = this.#cur_pos.y + y
+          const global_pos = this.#cur_pos.plus(Math.vec(x, y))
 
           yield [
             x + Chunks.render_radius.w,
             y + Chunks.render_radius.h,
-            ...this.getTile(global_x, global_y)
+            ...this.getTile(global_pos)
           ]
         }
       }
     }.bind(this)()
   }
 
-  getTile(x, y) {
+  /** use chunkGetTile for performance */
+  getTile(pos) {
     const center_x = this.cur_chunk.x
     const center_y = this.cur_chunk.y
-    const chunk_x = Math.floor(x / Chunks.tiles_per_chunk.w)
-    const chunk_y = Math.floor(y / Chunks.tiles_per_chunk.h)
+    const chunk_x = Math.floor(pos.x / Chunks.tiles_per_chunk.w)
+    const chunk_y = Math.floor(pos.y / Chunks.tiles_per_chunk.h)
 
     // console.log({center_x, center_y}, {chunk_x, chunk_y}, x, y)
 
-    return center_x === chunk_x && center_y === chunk_y ? this.chunkGetTile(this.c, x, y)
-      : center_x < chunk_x && center_y === chunk_y ? this.chunkGetTile(this.r, x, y)
-        : chunk_x < center_x && center_y === chunk_y ? this.chunkGetTile(this.l, x, y)
-          : center_x === chunk_x && center_y < chunk_y ? this.chunkGetTile(this.d, x, y)
-            : center_x === chunk_x && chunk_y < center_y ? this.chunkGetTile(this.u, x, y)
-              : center_x < chunk_x && center_y < chunk_y ? this.chunkGetTile(this.dr, x, y)
-                : chunk_x < center_x && center_y < chunk_y ? this.chunkGetTile(this.dl, x, y)
-                  : center_x < chunk_x && chunk_y < center_y ? this.chunkGetTile(this.ur, x, y)
-                    : chunk_x < center_x && chunk_y < center_y ? this.chunkGetTile(this.ul, x, y)
+    return center_x === chunk_x && center_y === chunk_y ? this.chunkGetTile(this.c, pos)
+      : center_x < chunk_x && center_y === chunk_y ? this.chunkGetTile(this.r, pos)
+        : chunk_x < center_x && center_y === chunk_y ? this.chunkGetTile(this.l, pos)
+          : center_x === chunk_x && center_y < chunk_y ? this.chunkGetTile(this.d, pos)
+            : center_x === chunk_x && chunk_y < center_y ? this.chunkGetTile(this.u, pos)
+              : center_x < chunk_x && center_y < chunk_y ? this.chunkGetTile(this.dr, pos)
+                : chunk_x < center_x && center_y < chunk_y ? this.chunkGetTile(this.dl, pos)
+                  : center_x < chunk_x && chunk_y < center_y ? this.chunkGetTile(this.ur, pos)
+                    : chunk_x < center_x && chunk_y < center_y ? this.chunkGetTile(this.ul, pos)
                       : [null, null]
   }
 
-  /** x and y are global */
-  chunkGetTile(chunk, x, y) {
-    x = x - chunk.x * Chunks.tiles_per_chunk.w
-    if (x < 0) x = Chunks.tiles_per_chunk.w - x
-    y = y - chunk.y * Chunks.tiles_per_chunk.h
-    if (y < 0) y = Chunks.tiles_per_chunk.h - y
-    if (x >= Chunks.tiles_per_chunk.w || y >= Chunks.tiles_per_chunk.h)
-      throw new Error(`You can only get tiles within the bounds of tile (<0, 0>..<${Chunks.tiles_per_chunk.w}, ${Chunks.tiles_per_chunk.h}>), got <${x}, ${y}>`)
-    return [chunk.data[x + y * Chunks.tiles_per_chunk.w], chunk.biome]
+  chunkGetTile(chunk, pos) {
+    pos.subtract(Math.vec(
+      chunk.x * Chunks.tiles_per_chunk.w,
+      chunk.y * Chunks.tiles_per_chunk.h
+    ))
+    if (pos.x < 0) pos.x = Chunks.tiles_per_chunk.w - pos.x
+    if (pos.y < 0) pos.y = Chunks.tiles_per_chunk.h - pos.y
+    if (pos.x >= Chunks.tiles_per_chunk.w || pos.y >= Chunks.tiles_per_chunk.h)
+      throw new Error(`You can only get tiles within the bounds of tile (<0, 0>..<${Chunks.tiles_per_chunk.w}, ${Chunks.tiles_per_chunk.h}>), got ${pos}`)
+    return [chunk.data[pos.x + pos.y * Chunks.tiles_per_chunk.w], chunk.biome]
+  }
+
+  setTile(pos, params) {
+    const center_x = this.cur_chunk.x
+    const center_y = this.cur_chunk.y
+    const chunk_x = Math.floor(pos.x / Chunks.tiles_per_chunk.w)
+    const chunk_y = Math.floor(pos.y / Chunks.tiles_per_chunk.h)
+
+    // console.log({center_x, center_y}, {chunk_x, chunk_y}, x, y)
+
+    return center_x === chunk_x && center_y === chunk_y ? this.chunkSetTile(this.c, pos, params)
+      : center_x < chunk_x && center_y === chunk_y ? this.chunkSetTile(this.r, pos, params)
+        : chunk_x < center_x && center_y === chunk_y ? this.chunkSetTile(this.l, pos, params)
+          : center_x === chunk_x && center_y < chunk_y ? this.chunkSetTile(this.d, pos, params)
+            : center_x === chunk_x && chunk_y < center_y ? this.chunkSetTile(this.u, pos, params)
+              : center_x < chunk_x && center_y < chunk_y ? this.chunkSetTile(this.dr, pos, params)
+                : chunk_x < center_x && center_y < chunk_y ? this.chunkSetTile(this.dl, pos, params)
+                  : center_x < chunk_x && chunk_y < center_y ? this.chunkSetTile(this.ur, pos, params)
+                    : chunk_x < center_x && chunk_y < center_y ? this.chunkSetTile(this.ul, pos, params)
+                      : [null, null]
+  }
+
+  chunkSetTile(chunk, pos, { amount, id, name, d_amount }) {
+    pos.subtract(Math.vec(
+      chunk.x * Chunks.tiles_per_chunk.w,
+      chunk.y * Chunks.tiles_per_chunk.h
+    ))
+    if (pos.x < 0) pos.x = Chunks.tiles_per_chunk.w - pos.x
+    if (pos.y < 0) pos.y = Chunks.tiles_per_chunk.h - pos.y
+    if (pos.x >= Chunks.tiles_per_chunk.w || pos.y >= Chunks.tiles_per_chunk.h)
+      throw new Error(`You can only set tiles within the bounds of tile (<0, 0>..<${Chunks.tiles_per_chunk.w}, ${Chunks.tiles_per_chunk.h}>), got ${pos}`)
+
+    const tile = chunk.data[pos.x + pos.y * Chunks.tiles_per_chunk.w]
+
+    if (id !== undefined) tile.id = id
+
+    if (name !== undefined) tile.id = BIOME_POOLS[chunk.biome].indexOf(name)
+
+    if (amount !== undefined) tile.amount = Math.max(amount, 0)
+    else tile.amount = Math.max(tile.amount + (d_amount ?? 0), 0)
+
+    return chunk.data[pos.x + pos.y * Chunks.tiles_per_chunk.w] = tile
   }
 }

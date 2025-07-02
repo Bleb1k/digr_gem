@@ -45,7 +45,7 @@ for (const name in BIOME_STATS) {
 }
 
 export function tileColor(biome, tile) {
-  if (tile.amount === 0) return '#fff0'
+  if (tile.amount === 0) return '#aaaf'
   switch (BIOME_POOLS[biome][tile.id].name) {
     case 'sand':
       return "#fbdb9f"
