@@ -1,10 +1,11 @@
 import { DB } from "./database.js"
+import { Inventory } from "./inventory.js"
 import { isKeyDown, Key } from "./keys.js"
 import { BIOME_POOLS } from "./resources.js"
 
 export class Character {
-  static move_recharge = 200
-  static hit_recharge = 1000
+  static move_recharge = 1000 / 5
+  static hit_recharge = 1000 / 5
   static strength = 0
 
   static move_charge = 0
@@ -49,12 +50,13 @@ export class Character {
         return false
       }
       const new_pos = this.pos.plus(move_vec)
-      const tile = chunks.getTile(new_pos)[0]
-      if (tile.amount > 0) {
+      const tile = chunks.getTile(new_pos)
+      if (tile[0].amount > 0) {
         this.move_vec = move_vec
         this.hit(chunks, new_pos)
         this.move_charge += this.hit_recharge
-      } else {
+      }
+      if (tile[0].amount === 0) {
         this.move_vec = Math.vec(0, 0)
         this.hit_accumulator = 0
         this.pos = new_pos
@@ -65,20 +67,25 @@ export class Character {
   }
 
   static hit(chunks, pos) {
-    console.log(`hitting ${pos}`)
+    // console.log(`hitting ${pos}`)
     const [tile, biome] = chunks.getTile(pos)
-    const { hardness } = BIOME_POOLS[biome][tile.id]
+    const { name, hardness } = BIOME_POOLS[biome][tile.id]
 
-    console.log('acc', this.hit_accumulator + this.strength, 'hardness', hardness, 'amount', tile.amount)
-    if (this.strength * 10 < hardness) return
+    // console.log('acc', this.hit_accumulator + this.strength, 'hardness', hardness, 'amount', tile.amount)
+    if (hardness < 1) return
+    // if (this.strength * 100 < hardness) return
     if ((this.hit_accumulator += this.strength) < hardness) return
 
     const broken_amount = Math.min(Math.floor(this.hit_accumulator / hardness), tile.amount)
 
     const { amount: new_amount } = chunks.setTile(pos, { d_amount: -broken_amount })
-    console.log('broken', broken_amount, 'new', new_amount)
-    if (new_amount <= 0) this.hit_accumulator = 0
-    else this.hit_accumulator -= broken_amount * hardness
+    // console.log('broken', broken_amount, 'new', new_amount)
+    if (new_amount === 0) {
+      this.hit_accumulator = 0
+      this.move_charge -= this.hit_recharge
+    } else this.hit_accumulator -= broken_amount * hardness
+
+    Inventory.store(name, broken_amount)
   }
 
   static async save() {

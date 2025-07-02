@@ -8,60 +8,65 @@
     margin: 0;
     padding: 0;
   }
-  canvas#game {
+  #game {
     position: absolute;
     width:  100%;
     height: 100%;
     margin: 0;
     padding: 0;
   }
-  canvas#game:focus {
+  #game:focus {
     outline: 2px solid red;
   }
-  .params {
+  #params {
     z-index: 2;
     position: absolute;
     background-color: #fff2;
-    top: 210px;
+    top: 310px;
   }
-  .params div {
+  #params div {
     display: flex;
     margin: 3px;
     font-family: monospace;
     font-size: 15px;
   }
-  .params div * {
+  #params div * {
     margin: 5px;
   }
-  .instructions {
+  #instructions {
     position: absolute;
-    left: 220px;
+    left: 320px;
     margin-top: 1em;
     margin-bottom: 1em;
   }
-  .instructions ul {
+  #instructions ul {
     list-style: none;
     padding-left: 10px;
   }
-    .instructions > * {
+  #instructions > * {
     margin-top: 0.5em;
     margin-bottom: 0.5em;
+  }
+  #inventory {
+    position: absolute;
+    top: 500px;
   }
   </style>
   <script src="./game.js" type="module"></script>
 </head>
 <body>
   <canvas id="game" tabindex="0"></canvas>
-  <div class="params">
-    <div id="character_speed"><div>character: spd</div><input value=20></input></div>
+  <div id="params">
+    <div id="character_speed"><div>character: spd</div><input value=10></input></div>
     <div id="character_stren"><div>character: str</div><input value=1 ></input></div>
   </div>
-  <div class="instructions">
+  <div id="instructions">
     <p>Controls:</p>
     <ul>
       <li>f5: save & reload page</li>
       <li>alt+f5: reset</li>
-      <li>wasd/arrow keys: move & dig</li>
+      <li>wasd/arrows: move & dig</li>
     </ul>
   </div>
+  <table id="inventory"></table>
 </body>

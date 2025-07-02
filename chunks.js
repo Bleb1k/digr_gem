@@ -10,7 +10,7 @@ export class Chunks {
   static async init(pos) {
     this.tiles_per_chunk ??= { w: 100, h: 100 }
     this.tile_size ??= { w: 10, h: 10 }
-    this.render_radius ??= { w: 10, h: 10 }
+    this.render_radius ??= { w: 15, h: 15 }
     this.character_tile ??= this.render_radius
 
     const self = new Chunks()

@@ -15,6 +15,7 @@ export class DB {
             db.createObjectStore('chunks', { keyPath: ["x", "y"] })
             db.createObjectStore('character', { keyPath: "id" })
             db.createObjectStore('metadata', { keyPath: "id" })
+            db.createObjectStore('inventory', { keyPath: "id" })
             break
           default:
             throw new Error(`Can't upgrade from version ${evt.oldVersion} to version ${evt.newVersion}`)

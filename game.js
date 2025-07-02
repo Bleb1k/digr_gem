@@ -5,6 +5,7 @@ import { Character } from "./character.js"
 import { Metadata } from "./meta.js"
 import { isKeyDown, isKeyPressed, Key, updateKeyEvents } from "./keys.js"
 import { BIOME_POOLS, tileColor } from "./resources.js"
+import { Inventory } from "./inventory.js"
 
 class Game {
   static dt = 0
@@ -12,11 +13,12 @@ class Game {
     await DB.init()
 
     try {
-    await Promise.all([
-      Metadata.init(),
-      Character.init(),
-    ])
-    this.chunks = await Chunks.init(Character.pos)
+      await Promise.all([
+        Metadata.init(),
+        Character.init(),
+        Inventory.init()
+      ])
+      this.chunks = await Chunks.init(Character.pos)
     } catch (e) {
       if (confirm("Error during load of the game, reset?"))
         (await DB.delete(), location.reload())
@@ -29,11 +31,7 @@ class Game {
       element.focus()
       element.addEventListener("mouseover", _ => element.focus())
       element.addEventListener("keydown", async (evt) => {
-        const key = evt.keyCode
-        if (key === Key.f5) {
-          evt.preventDefault()
-          console.log("defaults prevented")
-        }
+        if (evt.code === Key.f5) evt.preventDefault()
       })
     }
 
@@ -42,12 +40,20 @@ class Game {
       const time = Date.now()
       this.dt = time - (this.last_time ?? Date.now())
       this.last_time = time
-      await this.update()
+      try { await this.update() } catch (e) {
+        if (confirm("Error during load of the game, reset?"))
+          (await DB.delete(), location.reload())
+        throw e
+      }
     }, 1000 / 100);
     const draw_loop = async () => {
       for (; ;) {
         if (this.do_draw) {
-          this.draw()
+          try { await this.draw() } catch (e) {
+            if (confirm("Error during load of the game, reset?"))
+              (await DB.delete(), location.reload())
+            throw e
+          }
           this.do_draw = false
         }
         await new Promise((res, rej) => {
@@ -62,12 +68,17 @@ class Game {
       Character.shown = !Character.shown
       this.do_draw = true
     }, 300)
-    this.draw()
+    try { this.draw() } catch (e) {
+      if (confirm("Error during load of the game, reset?"))
+        (await DB.delete(), location.reload())
+      throw e
+    }
   }
   static async save() {
     await Promise.all([
       Metadata.save(),
       Character.save(),
+      Inventory.save(),
       this.chunks.save(),
     ])
   }
@@ -127,10 +138,13 @@ class Game {
         (Chunks.render_radius.h + Character.move_vec.y) * 10 + 5,
       )
       // draw_ctx.fillStyle = `conic-gradient(#ccc8 0deg, #0008 360deg)`
-      gradient.addColorStop(0, "#ccc4")
-      gradient.addColorStop(split, "#ccc4")
+      const color = tileColor(biome, tile)
+      gradient.addColorStop(0, color)
+      gradient.addColorStop(split, color)
       gradient.addColorStop(split, "#0000")
       gradient.addColorStop(1, "#0000")
+      // draw_ctx.filter = "hue-rotate(120deg)"
+      draw_ctx.filter = "invert(75%)"
       draw_ctx.fillStyle = gradient
       draw_ctx.fillRect(
         (Chunks.render_radius.w + Character.move_vec.x) * 10,
@@ -138,6 +152,8 @@ class Game {
         Chunks.tile_size.w,
         Chunks.tile_size.h
       )
+      draw_ctx.filter = "invert(0%)"
+      // draw_ctx.filter = "hue-rotate(0deg)"
     }
   }
 }
