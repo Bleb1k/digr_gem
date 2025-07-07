@@ -1,5 +1,3 @@
-import { enum_ } from "./enum.js";
-
 export const Key = {
   esc: "Escape",
   f1: "F1",
@@ -145,7 +143,7 @@ document.getElementById("game").addEventListener("keyup", (e) => {
 })
 
 export function updateKeyEvents() {
-  keys_down = {...keys_down_accumulator}
+  keys_down = { ...keys_down_accumulator }
   key_events = key_events_accumulator
   key_events_accumulator = {}
 }

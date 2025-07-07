@@ -1,16 +1,16 @@
 import { DB } from "./database.js"
 import { enum_ } from "./enum.js"
 import { Metadata } from "./meta.js"
-import { hashCoords, mulberry32 } from "./utils.js"
+import { hashCoords, mulberry32, sleep } from "./utils.js"
 import { BIOME_POOLS, randomBiomeAt, randomResourceAt } from "./resources.js"
 
 export class Chunks {
-  static dimensions = enum_("mine")
+  static dimensions = enum_("mine", "surface")
+  static tiles_per_chunk = { w: 100, h: 100 }
+  static tile_size = { w: 10, h: 10 }
+  static render_radius = { w: 15, h: 15 }
 
   static async init(pos) {
-    this.tiles_per_chunk ??= { w: 100, h: 100 }
-    this.tile_size ??= { w: 10, h: 10 }
-    this.render_radius ??= { w: 15, h: 15 }
     this.character_tile ??= this.render_radius
 
     const self = new Chunks()
@@ -20,7 +20,7 @@ export class Chunks {
       Math.floor(pos.x / Chunks.tiles_per_chunk.w),
       Math.floor(pos.y / Chunks.tiles_per_chunk.h),
     )
-    self.dim = Chunks.dimensions.mine
+    self.dim = Chunks.dimensions.surface
 
     self.updateMetadata()
     await self.updateChunks()
@@ -28,19 +28,36 @@ export class Chunks {
     return self
   }
 
+  saving = new Promise(ok => ok())
   async save() {
     console.log(`Saving chunks`)
-    return Promise.all([
-      DB.save("chunks", this.c),
-      DB.save("chunks", this.l),
-      DB.save("chunks", this.r),
-      DB.save("chunks", this.u),
-      DB.save("chunks", this.d),
-      DB.save("chunks", this.ul),
-      DB.save("chunks", this.ur),
-      DB.save("chunks", this.dl),
-      DB.save("chunks", this.dr),
+    let saving
+    this.saving = new Promise(ok => saving = ok)
+    await Promise.all([
+      this.saveChunk(this.c),
+      this.saveChunk(this.l),
+      this.saveChunk(this.r),
+      this.saveChunk(this.u),
+      this.saveChunk(this.d),
+      this.saveChunk(this.ul),
+      this.saveChunk(this.ur),
+      this.saveChunk(this.dl),
+      this.saveChunk(this.dr),
     ])
+    saving()
+    return
+  }
+
+  async saveChunk(chunk) {
+    const data = chunk.data.flatMap(({ id, amount }) => [id, amount])
+
+    await DB.save("chunks", {
+      dim: this.dim,
+      ...chunk,
+      data
+    })
+
+    return
   }
 
   #cur_pos = Math.vec(0, 0)
@@ -86,6 +103,7 @@ export class Chunks {
   }
 
   async updateChunks() {
+    await this.saving
     const { x, y } = this.c ?? { x: 0, y: 0 }
     if (
       undefined === (this.c && this.l && this.r && this.u && this.d && this.ul && this.ur && this.dl && this.dr)
@@ -114,8 +132,22 @@ export class Chunks {
   }
 
   async getChunk(pos) {
-    return (await DB.load("chunks", [pos.x, pos.y]))
-      ?? this.generateChunk(pos)
+    console.log(`Getting chunk ${pos}`)
+    const chunk = await DB.load("chunks", [pos.x, pos.y, this.dim])
+    if (chunk === undefined) return this.generateChunk(pos)
+    console.log(`Loaded chunk ${pos}`)
+
+    const view = chunk.data
+    chunk.data = new Array(chunk.data.length / 2)
+      .fill(0)
+      .map((_, i) => {
+        const id = view.at(i * 2)
+        const amount = view.at(i * 2 + 1)
+        return { id, amount }
+      })
+
+    console.log(`Got chunk ${pos}`)
+    return chunk
   }
 
   async replaceChunk(name, pos) {
@@ -128,7 +160,7 @@ export class Chunks {
     if (pos.eq([prev_x, prev_y])) return;
 
     const chunk = this[name]
-    DB.save("chunks", chunk)
+    this.saveChunk(chunk)
     this[name] = await this.getChunk(pos)
   }
 
@@ -145,9 +177,9 @@ export class Chunks {
     this.d = this.dl
 
     await Promise.all([
-      DB.save("chunks", r),
-      DB.save("chunks", ur),
-      DB.save("chunks", dr),
+      this.saveChunk(r),
+      this.saveChunk(ur),
+      this.saveChunk(dr),
       this.replaceChunk("ul", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y - 1)),
       this.replaceChunk("l", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y)),
       this.replaceChunk("dl", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y + 1)),
@@ -167,9 +199,9 @@ export class Chunks {
     this.d = this.dr
 
     await Promise.all([
-      DB.save("chunks", l),
-      DB.save("chunks", ul),
-      DB.save("chunks", dl),
+      this.saveChunk(l),
+      this.saveChunk(ul),
+      this.saveChunk(dl),
       this.replaceChunk("ur", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y - 1)),
       this.replaceChunk("r", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y)),
       this.replaceChunk("dr", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y + 1)),
@@ -189,9 +221,9 @@ export class Chunks {
     this.r = this.ur
 
     await Promise.all([
-      DB.save("chunks", dl),
-      DB.save("chunks", d),
-      DB.save("chunks", dr),
+      this.saveChunk(dl),
+      this.saveChunk(d),
+      this.saveChunk(dr),
       this.replaceChunk("ul", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y - 1)),
       this.replaceChunk("u", Math.vec(this.cur_chunk.x, this.cur_chunk.y - 1)),
       this.replaceChunk("ur", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y - 1)),
@@ -211,9 +243,9 @@ export class Chunks {
     this.r = this.dr
 
     await Promise.all([
-      DB.save("chunks", ul),
-      DB.save("chunks", u),
-      DB.save("chunks", ur),
+      this.saveChunk(ul),
+      this.saveChunk(u),
+      this.saveChunk(ur),
       this.replaceChunk("dl", Math.vec(this.cur_chunk.x - 1, this.cur_chunk.y + 1)),
       this.replaceChunk("d", Math.vec(this.cur_chunk.x, this.cur_chunk.y + 1)),
       this.replaceChunk("dr", Math.vec(this.cur_chunk.x + 1, this.cur_chunk.y + 1)),

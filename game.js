@@ -12,18 +12,14 @@ class Game {
   static async init() {
     await DB.init()
 
-    try {
+    await this.try(async () => {
       await Promise.all([
         Metadata.init(),
         Character.init(),
         Inventory.init()
       ])
       this.chunks = await Chunks.init(Character.pos)
-    } catch (e) {
-      if (confirm("Error during load of the game, reset?"))
-        (await DB.delete(), location.reload())
-      throw e
-    }
+    })
     this.chunks.chunkSetTile(this.chunks.c, Character.pos, { amount: 0 })
 
     {
@@ -35,25 +31,18 @@ class Game {
       })
     }
 
+    this.save_interval_id = setInterval(this.save, 60_000)
     this.update_interval_id = setInterval(async () => {
       updateKeyEvents()
       const time = Date.now()
       this.dt = time - (this.last_time ?? Date.now())
       this.last_time = time
-      try { await this.update() } catch (e) {
-        if (confirm("Error during load of the game, reset?"))
-          (await DB.delete(), location.reload())
-        throw e
-      }
+      await this.try(() => this.update())
     }, 1000 / 100);
     const draw_loop = async () => {
       for (; ;) {
         if (this.do_draw) {
-          try { await this.draw() } catch (e) {
-            if (confirm("Error during load of the game, reset?"))
-              (await DB.delete(), location.reload())
-            throw e
-          }
+          await this.try(() => this.draw())
           this.do_draw = false
         }
         await new Promise((res, rej) => {
@@ -68,11 +57,7 @@ class Game {
       Character.shown = !Character.shown
       this.do_draw = true
     }, 300)
-    try { this.draw() } catch (e) {
-      if (confirm("Error during load of the game, reset?"))
-        (await DB.delete(), location.reload())
-      throw e
-    }
+    await this.try(() => this.draw())
   }
   static async save() {
     await Promise.all([
@@ -81,6 +66,15 @@ class Game {
       Inventory.save(),
       this.chunks.save(),
     ])
+  }
+
+  static async try(fn) {
+    try { await fn() } catch (e) {
+      if (confirm("Error during draw of the game, reset?"))
+        (await DB.delete(), location.reload())
+      this.error()
+      throw e
+    }
   }
 
   static get error() {
@@ -97,6 +91,7 @@ class Game {
   static do_draw = false
 
   static async update() {
+    await this.chunks.saving
     if (isKeyPressed(Key.f5) && isKeyDown(Key.alt)) {
       await DB.delete()
       return location.reload()
@@ -105,12 +100,13 @@ class Game {
       return location.reload()
     }
 
-    if (Character.move(this.dt, this.chunks)) this.schedule_draw()
+    if (await Character.move(this.dt, this.chunks)) this.schedule_draw()
   }
 
   static async draw() {
     this.chunks.cur_pos = Character.pos
     for (const [x, y, tile, biome] of await this.chunks.visible_tiles()) {
+      // console.log([x, y, tile, biome])
       let color = tileColor(biome, tile)
       draw_ctx.fillStyle = color
       draw_ctx.fillRect(

@@ -12,10 +12,11 @@ export class DB {
         switch (evt.oldVersion) {
           case 0:
             // TODO: create stores for each dimension
-            db.createObjectStore('chunks', { keyPath: ["x", "y"] })
+            db.createObjectStore('chunks', { keyPath: ["x", "y", "dim"] })
             db.createObjectStore('character', { keyPath: "id" })
             db.createObjectStore('metadata', { keyPath: "id" })
             db.createObjectStore('inventory', { keyPath: "id" })
+            db.createObjectStore('buildings', { keyPath: "dim" })
             break
           default:
             throw new Error(`Can't upgrade from version ${evt.oldVersion} to version ${evt.newVersion}`)

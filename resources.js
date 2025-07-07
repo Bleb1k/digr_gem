@@ -1,3 +1,5 @@
+import { Character } from "./character.js"
+
 function unabbreviate(v) {
   const result = {}
   result.name = v.name ?? v.N
@@ -14,12 +16,12 @@ function unabbreviate(v) {
 
 export const BIOME_POOLS = {
   void: [{ N: 'void', W: 1, H: -1 }].map(unabbreviate),
-  surface: [
+  ground: [
     { N: 'dirt', W: 300, H: 3 },
     { N: 'mud', W: 34, H: 3, A: 2, S: 1 },
     { N: 'root', W: 10, H: 6, A: 5, S: 2 },
     { N: 'stone', W: 7, H: 50 },
-    { N: 'coal', W: 3, H: 35, A: 2}
+    { N: 'coal', W: 3, H: 35, A: 2 }
   ].map(unabbreviate),
   beach: [
     { N: 'sand', W: 1000, H: 1 },
@@ -32,7 +34,7 @@ export const BIOME_POOLS = {
 export const BIOME_STATS = {
   void: { y: NaN, weight: NaN },
   beach: { y: -3, spread: 5, weight: 3 },
-  surface: { y: 0, spread: 5, weight: 10 },
+  ground: { y: 0, spread: 5, weight: 10 },
 }
 
 for (const name in BIOME_STATS) {
@@ -41,28 +43,31 @@ for (const name in BIOME_STATS) {
 
 export function tileColor(biome, tile) {
   if (tile.amount === 0) return '#aaa'
+  // console.log(tile)
   switch (BIOME_POOLS[biome][tile.id].name) {
-    case 'sand':
-      return "#fd9"
+    case 'sand': return "#fd9"
     case 'dirt':
       if (biome === 'beach') return '#b74'
       return "#842"
-    case 'mud':
-      return "#531"
-    case 'stone':
-      return "#666"
-    case 'root':
-      return '#622'
-    case 'coal':
-      return '#122'
-    case 'shell':
-      return '#ebc'
-    case 'treasure':
-      return '#ff0'
-    case 'void':
-      return '#111'
-    default: 
+    case 'mud': return "#531"
+    case 'stone': return "#666"
+    case 'root': return '#622'
+    case 'coal': return '#122'
+    case 'shell': return '#ebc'
+    case 'treasure': return '#ff0'
+    case 'void': return '#111'
+    default:
       throw new Error(`Tile '${BIOME_POOLS[biome][tile.id].name}' is unhandled`)
+  }
+}
+
+export function tileEffect(biome, name) {
+  void biome
+  switch (name) {
+    case 'treasure':
+      Character.hit_accumulator -= Math.min(5, Character.strength)
+      break
+    default:
   }
 }
 
@@ -71,7 +76,7 @@ export function randomBiomeAt(y, rng) {
   let totalW = 0
   for (const name in BIOME_STATS) {
     const biome = BIOME_STATS[name]
-    
+
     if ((y > biome.y - biome.spread && biome.y + biome.spread > y) || y === biome.y) {
       available.push(name)
       totalW += biome.weight
@@ -96,7 +101,7 @@ export function randomResourceAt(biome, rng) {
     r -= res.weight
     if (r <= 0) {
       const amt = res.amount + Math.floor((rng() * 2 - 1) * res.spread)
-      return { id: i, amount: amt }
+      return { id: Number(i), amount: amt }
     }
   }
 }

@@ -1,7 +1,7 @@
 import { DB } from "./database.js"
 import { Inventory } from "./inventory.js"
 import { isKeyDown, Key } from "./keys.js"
-import { BIOME_POOLS } from "./resources.js"
+import { BIOME_POOLS, tileEffect } from "./resources.js"
 
 export class Character {
   static move_recharge = 1000 / 5
@@ -34,6 +34,7 @@ export class Character {
   }
 
   static async move(dt, chunks) {
+    await chunks.saving
     if ((this.move_charge -= dt) > 0) return false
     while (this.move_charge <= 0) {
       const move_vec = Math.vec(0, 0)
@@ -67,13 +68,14 @@ export class Character {
   }
 
   static hit(chunks, pos) {
-    // console.log(`hitting ${pos}`)
     const [tile, biome] = chunks.getTile(pos)
     const { name, hardness } = BIOME_POOLS[biome][tile.id]
 
-    // console.log('acc', this.hit_accumulator + this.strength, 'hardness', hardness, 'amount', tile.amount)
     if (hardness < 1) return
     // if (this.strength * 100 < hardness) return
+
+    tileEffect(biome, name)
+
     if ((this.hit_accumulator += this.strength) < hardness) return
 
     const broken_amount = Math.min(Math.floor(this.hit_accumulator / hardness), tile.amount)
