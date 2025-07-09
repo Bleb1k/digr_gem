@@ -1,72 +1,129 @@
 <!DOCTYPE html>
+<html lang="en" class="h-full">
 <head>
-  <title>Help bro I'm stuck digging millions of rocks just to find a single gold ore!</title>
-  <style>
-  html, body {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-  #game {
-    position: absolute;
-    width:  100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-  #game:focus {
-    outline: 2px solid red;
-  }
-  #params {
-    z-index: 2;
-    position: absolute;
-    background-color: #fff2;
-    top: 310px;
-  }
-  #params div {
-    display: flex;
-    margin: 3px;
-    font-family: monospace;
-    font-size: 15px;
-  }
-  #params div * {
-    margin: 5px;
-  }
-  #instructions {
-    position: absolute;
-    left: 320px;
-    margin-top: 1em;
-    margin-bottom: 1em;
-  }
-  #instructions ul {
-    list-style: none;
-    padding-left: 10px;
-  }
-  #instructions > * {
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-  }
-  #inventory {
-    position: absolute;
-    top: 500px;
-  }
-  </style>
-  <script src="./game.js" type="module"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help bro I'm stuck digging millions of rocks just to find a single gold ore!</title>
+    
+    <script src="https://cdn.tailwindcss.com "></script>
+    
+    <style>
+        #game {
+          z-index: 1;
+        }
+        #game:focus {
+            outline: none;
+        }
+        .border-inherit {
+            border: inherit;
+        }
+        .tab-btn {
+            line-height: 1rem;
+        }
+        .tab-btn.active {
+            --tw-border-opacity: 1;
+            border-color: rgb(209 213 219 / var(--tw-border-opacity, 1));
+        }
+    </style>
 </head>
-<body>
-  <canvas id="game" tabindex="0"></canvas>
-  <div id="params">
-    <div id="character_speed"><div>character: spd</div><input value=10></input></div>
-    <div id="character_stren"><div>character: str</div><input value=1 ></input></div>
-  </div>
-  <div id="instructions">
-    <p>Controls:</p>
-    <ul>
-      <li>f5: save & reload page</li>
-      <li>alt+f5: reset</li>
-      <li>wasd/arrows: move & dig</li>
-    </ul>
-  </div>
-  <table id="inventory"></table>
+<body class="h-full bg-gray-900 text-white font-mono">
+    <div class="flex h-full">
+        <!-- Left Sidebar -->
+        <div class="w-64 bg-gray-800 p-4 border-r border-gray-700">
+            <div class="tabs">
+                <div class="tab-list mb-2 flex flex-wrap gap-0 border border-gray-600">
+                    <button class="flex-1 border-inherit p-0.5 tab-btn active" data-tab="inventory">Inventory</button>
+                    <button class="flex-1 border-inherit p-0.5 tab-btn" data-tab="crafting">Crafting</button>
+                    <button class="flex-1 border-inherit p-0.5 tab-btn" data-tab="buildings">Buildings</button>
+                </div>
+                <div class="tab-content" id="left-tabs">
+                    <!-- Inventory Tab -->
+                    <div class="tab-pane active" id="inventory">
+                        <table id="inventory" class="w-full"></table>
+                    </div>
+                    <!-- Crafting Tab -->
+                    <div class="tab-pane hidden" id="crafting">
+                        <p>Crafting interface coming soon</p>
+                    </div>
+                    <!-- Buildings Tab -->
+                    <div class="tab-pane hidden" id="crafting">
+                        <p>Buildings interface coming soon</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Game Area -->
+        <div class="flex-1 flex flex-col items-center justify-center min-w-[500px]">
+            <div class="flex grow items-center aspect-[1/1] max-w-full max-h-full">
+              <canvas id="game" tabindex="0" class="grow max-w-full max-h-full aspect-[1/1] z-1"></canvas>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="w-64 bg-gray-800 p-4 border-l border-gray-700">
+            <div class="tabs">
+                <div class="tab-list mb-2 flex flex-wrap border border-gray-600">
+                    <button class="flex-1 border-inherit p-0.5 tab-btn active" data-tab="stats">Stats</button>
+                    <button class="flex-1 border-inherit p-0.5 tab-btn" data-tab="settings">Settings</button>
+                    <button class="flex-1 border-inherit p-0.5 tab-btn" data-tab="controls">Controls</button>
+                </div>
+                <div class="tab-content" id="right-tabs">
+                    <!-- Stats Tab -->
+                    <div class="tab-pane active" id="stats">
+                        <div class="space-y-4">
+                            <div class="param" id="character_speed">
+                                <label class="block text-sm text-gray-400">Speed</label>
+                                <input type="number" value="10" class="w-full bg-gray-700 rounded px-2 py-1">
+                            </div>
+                            <div class="param" id="character_stren">
+                                <label class="block text-sm text-gray-400">Strength</label>
+                                <input type="number" value="1" class="w-full bg-gray-700 rounded px-2 py-1">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Settings Tab -->
+                    <div class="tab-pane hidden" id="settings">
+                        <p>Settings interface coming soon</p>
+                    </div>
+                    <!-- Controls Tab -->
+                    <div class="tab-pane hidden backdrop-blur-sm" id="controls">
+                      <div class="max-w-4xl mx-auto">
+                          <h3 class="font-bold mb-2">Controls:</h3>
+                          <ul class="grid grid-cols-1 lg:grid-cols-2 gap-2 text-sm">
+                              <li class="bg-gray-700 px-2 py-1 rounded">F5: Save & Reload</li>
+                              <li class="bg-gray-700 px-2 py-1 rounded">Alt+F5: Reset</li>
+                              <li class="bg-gray-700 px-2 py-1 rounded">WASD: Move</li>
+                              <li class="bg-gray-700 px-2 py-1 rounded">Arrow Keys: Dig</li>
+                          </ul>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Script -->
+    <script src="./game.js" type="module"></script>
+
+    <!-- Tab Switching Script -->
+    <script>
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Get target tab ID
+                const tabId = btn.getAttribute('data-tab');
+                const tabsContainer = btn.closest('.tabs');
+                
+                // Remove active from all buttons
+                tabsContainer.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                // Hide all tab panes
+                tabsContainer.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+                
+                // Show target tab
+                btn.classList.add('active');
+                tabsContainer.querySelector(`#${tabId}`).classList.remove('hidden');
+            });
+        });
+    </script>
 </body>
+</html>

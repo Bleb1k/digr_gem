@@ -1,26 +1,24 @@
 import { DB } from "./database.js"
-import { enum_ } from "./enum.js"
 import { Metadata } from "./meta.js"
 import { hashCoords, mulberry32, sleep } from "./utils.js"
 import { BIOME_POOLS, randomBiomeAt, randomResourceAt } from "./resources.js"
+import { Character } from "./character.js"
 
 export class Chunks {
-  static dimensions = enum_("mine", "surface")
   static tiles_per_chunk = { w: 100, h: 100 }
-  static tile_size = { w: 10, h: 10 }
+  static tile_size = { w: 20, h: 20 }
   static render_radius = { w: 15, h: 15 }
 
-  static async init(pos) {
+  static async init() {
     this.character_tile ??= this.render_radius
 
     const self = new Chunks()
-
-    self.cur_pos = pos
+    
+    self.cur_pos = Character.pos
     self.cur_chunk = Math.vec(
-      Math.floor(pos.x / Chunks.tiles_per_chunk.w),
-      Math.floor(pos.y / Chunks.tiles_per_chunk.h),
+      Math.floor(self.#cur_pos.x / Chunks.tiles_per_chunk.w),
+      Math.floor(self.#cur_pos.y / Chunks.tiles_per_chunk.h),
     )
-    self.dim = Chunks.dimensions.surface
 
     self.updateMetadata()
     await self.updateChunks()
@@ -52,7 +50,7 @@ export class Chunks {
     const data = chunk.data.flatMap(({ id, amount }) => [id, amount])
 
     await DB.save("chunks", {
-      dim: this.dim,
+      dim: Character.dim,
       ...chunk,
       data
     })
@@ -64,7 +62,7 @@ export class Chunks {
 
   set cur_pos(pos) {
     if (this.#cur_pos.eq(pos)) return false
-    this.#cur_pos.components = pos.components.slice()
+    this.#cur_pos._ = pos._.slice()
     this.cur_chunk = Math.vec(
       Math.floor(pos.x / Chunks.tiles_per_chunk.w),
       Math.floor(pos.y / Chunks.tiles_per_chunk.h),
@@ -133,7 +131,7 @@ export class Chunks {
 
   async getChunk(pos) {
     console.log(`Getting chunk ${pos}`)
-    const chunk = await DB.load("chunks", [pos.x, pos.y, this.dim])
+    const chunk = await DB.load("chunks", [pos.x, pos.y, Character.dim])
     if (chunk === undefined) return this.generateChunk(pos)
     console.log(`Loaded chunk ${pos}`)
 

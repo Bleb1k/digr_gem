@@ -1,9 +1,11 @@
 import { DB } from "./database.js"
+import { enum_ } from "./enum.js"
 import { Inventory } from "./inventory.js"
 import { isKeyDown, Key } from "./keys.js"
 import { BIOME_POOLS, tileEffect } from "./resources.js"
 
 export class Character {
+  static dimensions = enum_("mine", "surface")
   static move_recharge = 1000 / 5
   static hit_recharge = 1000 / 5
   static strength = 0
@@ -15,6 +17,7 @@ export class Character {
   static async init() {
     const result = await DB.load("character", 0)
     this.pos = Math.vec(...(result?.pos ?? [50, 50]))
+    this.dim = result?.dim ?? this.dimensions.mine
 
     /** @type {HTMLInputElement} */
     let spd_elem = document.getElementById("character_speed").lastElementChild
@@ -94,7 +97,7 @@ export class Character {
     console.log(`Saving character with { pos: ${this.pos}}`)
     await DB.save("character", {
       id: 0,
-      pos: this.pos.components,
+      pos: this.pos._,
       strength: this.strength,
       move_recharge: this.move_recharge,
       hit_recharge: this.hit_recharge,

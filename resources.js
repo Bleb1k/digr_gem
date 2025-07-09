@@ -32,9 +32,9 @@ export const BIOME_POOLS = {
 }
 
 export const BIOME_STATS = {
-  void: { y: NaN, weight: NaN },
-  beach: { y: -3, spread: 5, weight: 3 },
-  ground: { y: 0, spread: 5, weight: 10 },
+  void: { positions: [], weight: 0 },
+  beach: { positions: [{y: -10, spread: 5}], weight: 2 },
+  ground: { positions: [{y: 0, spread: 7}], weight: 5 },
 }
 
 for (const name in BIOME_STATS) {
@@ -77,9 +77,14 @@ export function randomBiomeAt(y, rng) {
   for (const name in BIOME_STATS) {
     const biome = BIOME_STATS[name]
 
-    if ((y > biome.y - biome.spread && biome.y + biome.spread > y) || y === biome.y) {
+    console.log(biome)
+    for (const pos of biome.positions) if (
+      y === pos.y ||
+      (y > pos.y - pos.spread && pos.y + pos.spread > y)
+    ) {
       available.push(name)
       totalW += biome.weight
+      break
     }
   }
 

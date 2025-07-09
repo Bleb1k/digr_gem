@@ -1,11 +1,14 @@
-import { draw_ctx } from "./canvas.js"
 import { Chunks } from "./chunks.js"
-import { DB } from "./database.js"
 import { Character } from "./character.js"
 import { Metadata } from "./meta.js"
+import { Inventory } from "./inventory.js"
+
+import { draw_ctx } from "./canvas.js"
+import { DB } from "./database.js"
 import { isKeyDown, isKeyPressed, Key, updateKeyEvents } from "./keys.js"
 import { BIOME_POOLS, tileColor } from "./resources.js"
-import { Inventory } from "./inventory.js"
+import { Building, Buildings } from "./buildings.js"
+import { sleep } from "./utils.js"
 
 class Game {
   static dt = 0
@@ -13,12 +16,14 @@ class Game {
     await DB.init()
 
     await this.try(async () => {
-      await Promise.all([
+      const _ = await Promise.all([
         Metadata.init(),
         Character.init(),
-        Inventory.init()
+        Inventory.init(),
+        Buildings.init(),
       ])
-      this.chunks = await Chunks.init(Character.pos)
+      this.chunks = await Chunks.init()
+      this.builds = _[3]
     })
     this.chunks.chunkSetTile(this.chunks.c, Character.pos, { amount: 0 })
 
@@ -31,7 +36,7 @@ class Game {
       })
     }
 
-    this.save_interval_id = setInterval(this.save, 60_000)
+    this.save_interval_id = setInterval(() => this.save(), 60_000)
     this.update_interval_id = setInterval(async () => {
       updateKeyEvents()
       const time = Date.now()
@@ -78,7 +83,7 @@ class Game {
   }
 
   static get error() {
-    this.stop_draw_loop()
+    this.stop_draw_loop?.()
     clearInterval(this.character_blink_interval_id)
     clearInterval(this.update_interval_id)
     return Error;
@@ -97,30 +102,38 @@ class Game {
       return location.reload()
     } else if (isKeyPressed(Key.f5)) {
       await this.save()
+      await sleep(1000)
       return location.reload()
     }
 
     if (await Character.move(this.dt, this.chunks)) this.schedule_draw()
+
+    if (isKeyPressed(Key.space)) this.builds.push(Building.charcoal_pit(Character.pos))
   }
 
   static async draw() {
     this.chunks.cur_pos = Character.pos
     for (const [x, y, tile, biome] of await this.chunks.visible_tiles()) {
-      // console.log([x, y, tile, biome])
       let color = tileColor(biome, tile)
       draw_ctx.fillStyle = color
       draw_ctx.fillRect(
-        x * 10,
-        y * 10,
+        x * Chunks.tile_size.w,
+        y * Chunks.tile_size.h,
         Chunks.tile_size.w,
         Chunks.tile_size.h
       )
     }
+
+    for (const building of this.builds) {
+      building.draw()
+    }
+
+
     if (Character.shown) {
       draw_ctx.fillStyle = "#ccc"
       draw_ctx.fillRect(
-        Chunks.render_radius.w * 10,
-        Chunks.render_radius.h * 10,
+        Chunks.render_radius.w * Chunks.tile_size.w,
+        Chunks.render_radius.h * Chunks.tile_size.h,
         Chunks.tile_size.w,
         Chunks.tile_size.h
       )
@@ -130,8 +143,8 @@ class Game {
       const { hardness } = BIOME_POOLS[biome][tile.id]
       const split = Math.min(Character.hit_accumulator, hardness) / hardness
       const gradient = draw_ctx.createConicGradient(0,
-        (Chunks.render_radius.w + Character.move_vec.x) * 10 + 5,
-        (Chunks.render_radius.h + Character.move_vec.y) * 10 + 5,
+        (Chunks.render_radius.w + Character.move_vec.x) * Chunks.tile_size.w + Chunks.tile_size.w / 2,
+        (Chunks.render_radius.h + Character.move_vec.y) * Chunks.tile_size.h + Chunks.tile_size.h / 2,
       )
       // draw_ctx.fillStyle = `conic-gradient(#ccc8 0deg, #0008 360deg)`
       const color = tileColor(biome, tile)
@@ -143,8 +156,8 @@ class Game {
       draw_ctx.filter = "invert(75%)"
       draw_ctx.fillStyle = gradient
       draw_ctx.fillRect(
-        (Chunks.render_radius.w + Character.move_vec.x) * 10,
-        (Chunks.render_radius.h + Character.move_vec.y) * 10,
+        (Chunks.render_radius.w + Character.move_vec.x) * Chunks.tile_size.w,
+        (Chunks.render_radius.h + Character.move_vec.y) * Chunks.tile_size.h,
         Chunks.tile_size.w,
         Chunks.tile_size.h
       )

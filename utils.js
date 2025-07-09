@@ -71,64 +71,89 @@ class Vector {
     if (vals.length === 0) {
       throw new Error("Can't create a vector of zero arity");
     }
-    this.components = vals;
+    this._ = vals;
   }
 
-  get arity() { return this.components.length }
+  get arity() { return this._.length }
 
-  get x() { return this.components[0]; }
-  set x(value) { this.components[0] = value; }
+  get x() { return this._[0]; }
+  set x(value) { this._[0] = value; }
 
-  get y() { return this.components[1]; }
-  set y(value) { this.components[1] = value; }
+  get y() { return this._[1]; }
+  set y(value) { this._[1] = value; }
 
-  get z() { return this.components[2]; }
-  set z(value) { this.components[2] = value; }
+  get z() { return this._[2]; }
+  set z(value) { this._[2] = value; }
 
-  get w() { return this.components[3]; }
-  set w(value) { this.components[3] = value; }
+  get w() { return this._[3]; }
+  set w(value) { this._[3] = value; }
 
   magnitude() {
-    return Math.sqrt(this.components.reduce((sum, val) => sum + val * val, 0));
+    return Math.sqrt(this._.reduce((sum, val) => sum + val * val, 0));
   }
 
   add(other) {
+    if (other instanceof Array) other = Math.vec(...other)
     if (this.arity !== other.arity) {
       throw new Error('Vectors must have the same arity');
     }
-    this.components = this.components.map((val, i) => val + other.components[i]);
+    this._ = this._.map((val, i) => val + other._[i]);
   }
 
   plus(other) {
+    if (other instanceof Array) other = Math.vec(...other)
     if (this.arity !== other.arity) {
       throw new Error('Vectors must have the same arity');
     }
-    return new Vector(...this.components.map((val, i) => val + other.components[i]));
+    return new Vector(...this._.map((val, i) => val + other._[i]));
   }
 
   subtract(other) {
+    if (other instanceof Array) other = Math.vec(...other)
     if (this.arity !== other.arity) {
       throw new Error('Vectors must have the same arity');
     }
-    this.components = this.components.map((val, i) => val - other.components[i]);
+    this._ = this._.map((val, i) => val - other._[i]);
   }
 
   minus(other) {
+    if (other instanceof Array) other = Math.vec(...other)
     if (this.arity !== other.arity) {
       throw new Error('Vectors must have the same arity');
     }
-    return new Vector(...this.components.map((val, i) => val - other.components[i]));
+    return new Vector(...this._.map((val, i) => val - other._[i]));
+  }
+
+  /** element-wise */
+  multiply(other) {
+    if (other instanceof Array) other = Math.vec(...other)
+    if (this.arity !== other.arity)
+      throw new Error('Vectors must have the same arity');
+    this._ = this._.map((v, i) => v * other._[i])
+    return this
+  }
+
+  /** element-wise */
+  times(other) {
+    if (other instanceof Array) other = Math.vec(...other)
+    if (this.arity !== other.arity)
+      throw new Error('Vectors must have the same arity');
+    return Math.vec(...this._.map((v, i) => v * other._[i]))
   }
 
   scale(scalar) {
-    return new Vector(...this.components.map(val => val * scalar));
+    if (scalar instanceof Array && scalar.length === this.arity) {
+      return new Vector(...this._.map((v, i) => v * scalar[i]))
+    }
+    return new Vector(...this._.map(val => val * scalar));
   }
 
   dot(other) {
+    if (other instanceof Array) other = Math.vec(...other)
     if (this.arity !== other.arity) {
       throw new Error('Vectors must have the same arity');
     }
-    return this.components.reduce((sum, val, i) => sum + val * other.components[i], 0);
+    return this._.reduce((sum, val, i) => sum + val * other._[i], 0);
   }
 
   normalize() {
@@ -140,23 +165,57 @@ class Vector {
   }
 
   distanceTo(other) {
-    return this.subtract(other).magnitude();
+    return this.minus(other).magnitude();
   }
 
   eq(other) {
     if (other instanceof Array) {
       if (this.arity !== other.length) return false;
-      return this.components.every((val, i) => val === other[i])
+      return this._.every((val, i) => val === other[i])
     }
     if (this.arity !== other.arity) return false;
-    return this.components.every((val, i) => val === other.components[i]);
+    return this._.every((val, i) => val === other._[i]);
   }
 
   toString() {
-    return `<${this.components.join(', ')}>`;
+    return `<${this._.join(', ')}>`;
   }
 }
 
 Math.vec = function(...vals) {
   return new Vector(...vals)
+}
+
+const spriteCache = new Map()
+export async function loadImage(url) {
+  if (spriteCache.has(url)) {
+    return spriteCache.get(url)
+  }
+  return new Promise((ok, err) => {
+    const img = new Image()
+
+    img.onload = () => {
+      console.log(url, img)
+      spriteCache.set(url, img)
+      ok(img)
+    }
+    img.onerror = e => err(new Error(`Failed to load image: ${url}`, { cause: e }))
+
+    img.src = 'assets/' + url
+  })
+}
+
+export function sprite(path) {
+  if (!spriteCache.has(path)) {
+    throw new Error(`Can't find sprite '${path}'`)
+  }
+  return spriteCache.get(path)
+}
+
+export function omit(obj, fields) {
+  const result = {}
+
+  for (const name in obj) if (!fields.includes(name)) result[name] = obj[name];
+
+  return result
 }
